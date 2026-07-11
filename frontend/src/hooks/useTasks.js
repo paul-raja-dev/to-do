@@ -1,74 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-
-// ─── MOCK DATABASE ────────────────────────────────────────────────────────────
-// Simulates GET /api/auth/me → hardcoded owner_id: 1 for local prototyping
-const MOCK_USER = {
-  id: 1,
-  username: 'test',
-  email: 'test@taskflow.local',
-};
-
-let mockTasks = [
-  {
-    id: 1,
-    title: 'Design Database Schema',
-    description: 'Create models for tasks, users, and categories with appropriate relationships.',
-    status: 'completed',
-    priority: 'high',
-    due_date: null,
-    owner_id: 1,
-    created_at: '2026-07-11T10:00:00.000Z',
-    updated_at: '2026-07-11T10:30:00.000Z',
-  },
-  {
-    id: 2,
-    title: 'Implement FastAPI Routes',
-    description: 'Write the CRUD endpoints for task management and status transition validations.',
-    status: 'in_progress',
-    priority: 'medium',
-    due_date: null,
-    owner_id: 1,
-    created_at: '2026-07-11T11:00:00.000Z',
-    updated_at: '2026-07-11T11:45:00.000Z',
-  },
-  {
-    id: 3,
-    title: 'Develop Frontend Components',
-    description: 'Build clean, reusable dashboard components with Tailwind CSS integration.',
-    status: 'pending',
-    priority: 'high',
-    due_date: null,
-    owner_id: 1,
-    created_at: '2026-07-11T12:00:00.000Z',
-    updated_at: '2026-07-11T12:00:00.000Z',
-  },
-  {
-    id: 4,
-    title: 'Write Integration Tests',
-    description: 'Ensure that front-to-back authentication and data flow function end-to-end.',
-    status: 'pending',
-    priority: 'low',
-    due_date: null,
-    owner_id: 1,
-    created_at: '2026-07-11T13:00:00.000Z',
-    updated_at: '2026-07-11T13:00:00.000Z',
-  },
-];
-
-// ─── METRICS HELPER ───────────────────────────────────────────────────────────
-// Simulates GET /api/metrics/summary — derived locally from in-memory array
-function computeMetrics(taskArray) {
-  return taskArray.reduce(
-    (acc, task) => {
-      acc.total += 1;
-      if (task.status === 'pending')     acc.pending    += 1;
-      if (task.status === 'in_progress') acc.inProgress += 1;
-      if (task.status === 'completed')   acc.completed  += 1;
-      return acc;
-    },
-    { total: 0, pending: 0, inProgress: 0, completed: 0 }
-  );
-}
+import API from '../api/axiosInstance';
 
 // ─── HOOK ─────────────────────────────────────────────────────────────────────
 export default function useTasks() {
@@ -76,18 +7,16 @@ export default function useTasks() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [loading,      setLoading]      = useState(false);
   const [error,        setError]        = useState(null);
-  const [user]                          = useState(MOCK_USER);
 
   // ── GET /api/tasks ─────────────────────────────────────────────────────────
-  const fetchTasks = useCallback(async (filterStatus = null) => {
+  const fetchTasks = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      await new Promise(r => setTimeout(r, 150));
-      if (filterStatus) setStatusFilter(filterStatus);
-      setTasks([...mockTasks]);
+      const res = await API.get('/tasks');
+      setTasks(res.data);
     } catch (err) {
-      setError(err.message || 'Failed to fetch tasks');
+      setError(err.response?.data?.detail || err.message || 'Failed to fetch tasks');
     } finally {
       setLoading(false);
     }
@@ -95,114 +24,102 @@ export default function useTasks() {
 
   // ── POST /api/tasks ────────────────────────────────────────────────────────
   const createTask = useCallback(async (taskData) => {
-    setLoading(true);
     setError(null);
     try {
-      await new Promise(r => setTimeout(r, 150));
-      if (!taskData.title?.trim()) throw new Error('Task title is required');
-
-      const newTask = {
-        id:          mockTasks.length > 0 ? Math.max(...mockTasks.map(t => t.id)) + 1 : 1,
-        title:       taskData.title.trim(),
-        description: taskData.description || '',
-        status:      taskData.status   || 'pending',
-        priority:    taskData.priority || 'medium',
-        due_date:    taskData.due_date || null,
-        owner_id:    MOCK_USER.id,
-        created_at:  new Date().toISOString(),
-        updated_at:  new Date().toISOString(),
-      };
-
-      mockTasks.push(newTask);
-      setTasks([...mockTasks]); // triggers metrics recompute via useMemo
-      return newTask;
+      const res = await API.post('/tasks', taskData);
+      setTasks(prev => [...prev, res.data]);
+      return res.data;
     } catch (err) {
-      setError(err.message || 'Failed to create task');
-      throw err;
-    } finally {
-      setLoading(false);
+      const msg = err.response?.data?.detail || err.message || 'Failed to create task';
+      setError(msg);
+      throw new Error(msg);
     }
   }, []);
 
   // ── PUT /api/tasks/{task_id} ───────────────────────────────────────────────
   const updateTask = useCallback(async (taskId, updatedFields) => {
-    setLoading(true);
     setError(null);
     try {
-      await new Promise(r => setTimeout(r, 150));
-      const idx = mockTasks.findIndex(t => t.id === taskId);
-      if (idx === -1) throw new Error(`Task #${taskId} not found`);
-
-      mockTasks[idx] = { ...mockTasks[idx], ...updatedFields, updated_at: new Date().toISOString() };
-      setTasks([...mockTasks]);
-      return mockTasks[idx];
+      const res = await API.put(`/tasks/${taskId}`, updatedFields);
+      setTasks(prev => prev.map(t => t.id === taskId ? res.data : t));
+      return res.data;
     } catch (err) {
-      setError(err.message || 'Failed to update task');
-      throw err;
-    } finally {
-      setLoading(false);
+      const msg = err.response?.data?.detail || err.message || 'Failed to update task';
+      setError(msg);
+      throw new Error(msg);
     }
   }, []);
 
   // ── PATCH /api/tasks/{task_id}/status ──────────────────────────────────────
   const toggleTaskStatus = useCallback(async (taskId) => {
-    setLoading(true);
     setError(null);
     try {
-      await new Promise(r => setTimeout(r, 100));
-      const idx = mockTasks.findIndex(t => t.id === taskId);
-      if (idx === -1) throw new Error(`Task #${taskId} not found`);
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) throw new Error(`Task #${taskId} not found`);
 
       const cycle = { pending: 'in_progress', in_progress: 'completed', completed: 'pending' };
-      mockTasks[idx] = {
-        ...mockTasks[idx],
-        status:     cycle[mockTasks[idx].status],
-        updated_at: new Date().toISOString(),
-      };
-      setTasks([...mockTasks]);
-      return mockTasks[idx];
+      const nextStatus = cycle[task.status];
+
+      const res = await API.patch(`/tasks/${taskId}/status`, { status: nextStatus });
+      setTasks(prev => prev.map(t => t.id === taskId ? res.data : t));
+      return res.data;
     } catch (err) {
-      setError(err.message || 'Failed to toggle status');
-      throw err;
-    } finally {
-      setLoading(false);
+      const msg = err.response?.data?.detail || err.message || 'Failed to toggle status';
+      setError(msg);
+      throw new Error(msg);
     }
-  }, []);
+  }, [tasks]);
 
   // ── DELETE /api/tasks/{task_id} ────────────────────────────────────────────
   const deleteTask = useCallback(async (taskId) => {
-    setLoading(true);
     setError(null);
     try {
-      await new Promise(r => setTimeout(r, 150));
-      const idx = mockTasks.findIndex(t => t.id === taskId);
-      if (idx === -1) throw new Error(`Task #${taskId} not found`);
-
-      mockTasks = mockTasks.filter(t => t.id !== taskId);
-      setTasks([...mockTasks]);
+      await API.delete(`/tasks/${taskId}`);
+      setTasks(prev => prev.filter(t => t.id !== taskId));
     } catch (err) {
-      setError(err.message || 'Failed to delete task');
-      throw err;
-    } finally {
-      setLoading(false);
+      const msg = err.response?.data?.detail || err.message || 'Failed to delete task';
+      setError(msg);
+      throw new Error(msg);
     }
   }, []);
 
+  // ── GET /api/metrics/summary ──────────────────────────────────────────────
+  const [metrics, setMetrics] = useState({ total: 0, pending: 0, inProgress: 0, completed: 0 });
+
+  const fetchMetrics = useCallback(async () => {
+    try {
+      const res = await API.get('/metrics/summary');
+      setMetrics(res.data);
+    } catch {
+      // Fallback: compute locally if metrics endpoint fails
+      setMetrics(tasks.reduce(
+        (acc, t) => {
+          acc.total += 1;
+          if (t.status === 'pending')     acc.pending    += 1;
+          if (t.status === 'in_progress') acc.inProgress += 1;
+          if (t.status === 'completed')   acc.completed  += 1;
+          return acc;
+        },
+        { total: 0, pending: 0, inProgress: 0, completed: 0 }
+      ));
+    }
+  }, [tasks]);
+
   // ── BOOTSTRAP ──────────────────────────────────────────────────────────────
   useEffect(() => {
-    const t = setTimeout(() => fetchTasks(), 0);
-    return () => clearTimeout(t);
+    fetchTasks();
   }, [fetchTasks]);
 
+  // Re-fetch metrics whenever tasks change
+  useEffect(() => {
+    fetchMetrics();
+  }, [tasks, fetchMetrics]);
+
   // ── DERIVED STATE ──────────────────────────────────────────────────────────
-  // Simulates GET /api/tasks?status=<filter>
   const filteredTasks = useMemo(() =>
     tasks.filter(t => statusFilter === 'all' || t.status === statusFilter),
     [tasks, statusFilter]
   );
-
-  // Simulates GET /api/metrics/summary — always fresh, never stale
-  const metrics = useMemo(() => computeMetrics(tasks), [tasks]);
 
   return {
     tasks,
@@ -212,7 +129,6 @@ export default function useTasks() {
     metrics,
     loading,
     error,
-    user,
     fetchTasks,
     createTask,
     updateTask,

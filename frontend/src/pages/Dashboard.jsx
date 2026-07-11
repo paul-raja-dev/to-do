@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import useTasks from '../hooks/useTasks';
 import MetricsBar   from '../components/MetricsBar';
 import StatusFilter  from '../components/StatusFilter';
@@ -7,7 +8,7 @@ import TaskForm      from '../components/TaskForm';
 import AlertBanner   from '../components/AlertBanner';
 
 // ─── PROFILE POPUP ────────────────────────────────────────────────────────────
-function ProfilePopup({ user }) {
+function ProfilePopup({ user, onLogout }) {
   return (
     <div className="absolute top-full right-0 mt-3 w-64 border-2 border-black bg-white z-50 shadow-[4px_4px_0px_0px_#000]">
       {/* Header strip */}
@@ -38,8 +39,18 @@ function ProfilePopup({ user }) {
           <div className="text-[8px] font-black uppercase tracking-[0.2em] text-neutral-400 mb-0.5">
             Auth Mode
           </div>
-          <div className="text-xs font-mono text-black font-bold">Mock / Local Prototype</div>
+          <div className="text-xs font-mono text-black font-bold">JWT / Bearer</div>
         </div>
+      </div>
+
+      {/* Logout button */}
+      <div className="border-t border-neutral-200 px-4 py-3">
+        <button
+          onClick={onLogout}
+          className="w-full py-2 bg-white text-black text-[9px] font-black uppercase tracking-widest border border-black hover:bg-black hover:text-white transition-colors cursor-pointer"
+        >
+          [ Logout ]
+        </button>
       </div>
 
       {/* Footer caret triangle */}
@@ -50,6 +61,8 @@ function ProfilePopup({ user }) {
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 export default function Dashboard() {
+  const { user, logout } = useAuth();
+
   const {
     filteredTasks,
     statusFilter,
@@ -57,7 +70,6 @@ export default function Dashboard() {
     metrics,
     loading,
     error,
-    user,
     createTask,
     updateTask,
     toggleTaskStatus,
@@ -124,9 +136,17 @@ export default function Dashboard() {
               {showForm ? '[ Close ]' : '[ + Task ]'}
             </button>
 
+            {/* Logout button (mobile) */}
+            <button
+              onClick={logout}
+              className="text-[10px] font-black uppercase tracking-[0.15em] px-4 py-2.5 border border-black bg-white text-black hover:bg-black hover:text-white transition-colors cursor-pointer md:hidden"
+            >
+              [ Exit ]
+            </button>
+
             {/* Profile pill with hover popup */}
             <div
-              className="relative"
+              className="relative hidden md:block"
               onMouseEnter={() => setShowProfile(true)}
               onMouseLeave={() => setShowProfile(false)}
             >
@@ -141,7 +161,7 @@ export default function Dashboard() {
               </button>
 
               {/* Hover popup — shows user session details */}
-              {showProfile && <ProfilePopup user={user} />}
+              {showProfile && <ProfilePopup user={user} onLogout={logout} />}
             </div>
           </div>
         </header>
@@ -205,7 +225,7 @@ export default function Dashboard() {
         {/* ── FOOTER ──────────────────────────────────────────────────────── */}
         <footer className="border-t border-neutral-200 py-6 mt-16 flex items-center justify-between">
           <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-neutral-300">
-            TaskFlow · Local Prototype
+            TaskFlow · Authenticated
           </span>
           <span className="text-[9px] font-mono uppercase tracking-[0.2em] text-neutral-300">
             user:{user.username} id:{user.id}
