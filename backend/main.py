@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI() 
+app = FastAPI(title="TaskFlow API", version="0.1.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -12,7 +12,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.get("/")
 async def root():
-    return JSONResponse(content={"message": "Welcome to the To-Do API"})
-
+    return JSONResponse(content={"message": "Welcome to the TaskFlow API"})

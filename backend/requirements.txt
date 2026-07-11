@@ -1,5 +1,10 @@
 fastapi
 uvicorn
-asyncpg
 sqlalchemy
+asyncpg
 alembic
+python-dotenv
+pydantic[email]
+python-jose[cryptography]
+passlib[bcrypt]
+python-multipart
