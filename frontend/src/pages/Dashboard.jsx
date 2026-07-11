@@ -59,6 +59,7 @@ export default function Dashboard() {
     error,
     user,
     createTask,
+    updateTask,
     toggleTaskStatus,
     deleteTask,
   } = useTasks();
@@ -87,9 +88,18 @@ export default function Dashboard() {
     }
   };
 
+  const handleUpdate = async (id, fields) => {
+    try {
+      await updateTask(id, fields);
+      setBanner({ message: `Task #${id} updated.`, type: 'success' });
+    } catch (err) {
+      setBanner({ message: err.message, type: 'error' });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white text-black font-mono">
-      <div className="max-w-4xl mx-auto px-6 border-x border-neutral-200 min-h-screen flex flex-col">
+      <div className="max-w-6xl mx-auto px-8 border-x border-neutral-200 min-h-screen flex flex-col">
 
         {/* ── HEADER ──────────────────────────────────────────────────────── */}
         <header className="flex items-center justify-between py-8 border-b-2 border-black">
@@ -188,6 +198,7 @@ export default function Dashboard() {
             tasks={filteredTasks}
             onToggle={toggleTaskStatus}
             onDelete={handleDelete}
+            onUpdate={handleUpdate}
           />
         </main>
 
